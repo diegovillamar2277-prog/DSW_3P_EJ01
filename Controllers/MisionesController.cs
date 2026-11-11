@@ -9,13 +9,12 @@ namespace QuestLog.Controllers;
 public class MisionesController(IMisionService service) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<Mision>>> ObtenerTodas(CancellationToken ct) =>
-        Ok(await service.ObtenerTodasAsync(ct));
+    public ActionResult<List<Mision>> ObtenerTodas() => Ok(service.ObtenerTodas());
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Mision>> ObtenerPorId(int id, CancellationToken ct)
+    public ActionResult<Mision> ObtenerPorId(int id)
     {
-        var mision = await service.ObtenerPorIdAsync(id, ct);
+        var mision = service.ObtenerPorId(id);
         if (mision is null) return NotFound(new ProblemDetails
         {
             Status = 404, Title = "Misión no encontrada", Detail = "La misión no existe."
@@ -24,23 +23,23 @@ public class MisionesController(IMisionService service) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Mision>> Crear([FromBody] Mision request, CancellationToken ct)
+    public ActionResult<Mision> Crear([FromBody] Mision request)
     {
-        var mision = await service.CrearAsync(request, ct);
+        var mision = service.Crear(request);
         return CreatedAtAction(nameof(ObtenerPorId), new { id = mision.Id }, mision);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Actualizar(int id, [FromBody] Mision request, CancellationToken ct)
+    public IActionResult Actualizar(int id, [FromBody] Mision request)
     {
-        await service.ActualizarAsync(id, request, ct);
+        service.Actualizar(id, request);
         return NoContent();
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Eliminar(int id, CancellationToken ct)
+    public IActionResult Eliminar(int id)
     {
-        await service.EliminarAsync(id, ct);
+        service.Eliminar(id);
         return NoContent();
     }
 }
