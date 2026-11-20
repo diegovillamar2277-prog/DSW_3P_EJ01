@@ -6,7 +6,7 @@ namespace QuestLog.Repositories;
 public sealed class MisionJsonRepository : IMisionRepository
 {
     private readonly string _ruta;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly object _lock = new();
     private readonly JsonSerializerOptions _options = new() { WriteIndented = true };
 
     public MisionJsonRepository(IWebHostEnvironment environment, IConfiguration configuration)
@@ -16,22 +16,20 @@ public sealed class MisionJsonRepository : IMisionRepository
         Directory.CreateDirectory(Path.GetDirectoryName(_ruta)!);
     }
 
-    private async Task<List<Mision>> LeerAsync(CancellationToken ct)
+    private List<Mision> Leer()
     {
         if (!File.Exists(_ruta)) return new List<Mision>();
-        await using var stream = File.OpenRead(_ruta);
         // Un archivo corrupto no se interpreta como vacío para evitar pérdida de datos.
-        return await JsonSerializer.DeserializeAsync<List<Mision>>(stream, _options, ct)
+        return JsonSerializer.Deserialize<List<Mision>>(File.ReadAllText(_ruta), _options)
             ?? throw new InvalidDataException("El archivo de misiones no contiene una lista JSON.");
     }
 
-    private async Task GuardarAsync(List<Mision> misiones, CancellationToken ct)
+    private void Guardar(List<Mision> misiones)
     {
         var temporal = _ruta + ".tmp";
         try
         {
-            await using (var stream = File.Create(temporal))
-                await JsonSerializer.SerializeAsync(stream, misiones, _options, ct);
+            File.WriteAllText(temporal, JsonSerializer.Serialize(misiones, _options));
             File.Move(temporal, _ruta, overwrite: true);
         }
         finally
@@ -40,58 +38,50 @@ public sealed class MisionJsonRepository : IMisionRepository
         }
     }
 
-    public async Task<List<Mision>> ObtenerTodasAsync(CancellationToken ct = default)
+    public List<Mision> ObtenerTodos()
     {
-        await _lock.WaitAsync(ct);
-        try { return await LeerAsync(ct); }
-        finally { _lock.Release(); }
+        lock (_lock) return Leer();
     }
 
-    public async Task<Mision?> ObtenerPorIdAsync(int id, CancellationToken ct = default)
+    public Mision? ObtenerPorId(int id)
     {
-        var misiones = await ObtenerTodasAsync(ct);
-        return misiones.FirstOrDefault(m => m.Id == id);
+        lock (_lock) return Leer().FirstOrDefault(m => m.Id == id);
     }
 
-    public async Task<Mision> CrearAsync(Mision mision, CancellationToken ct = default)
+    public Mision Agregar(Mision mision)
     {
-        await _lock.WaitAsync(ct);
-        try
+        lock (_lock)
         {
-            var misiones = await LeerAsync(ct);
+            var misiones = Leer();
             mision.Id = checked(misiones.Select(m => m.Id).DefaultIfEmpty(0).Max() + 1);
             misiones.Add(mision);
-            await GuardarAsync(misiones, ct);
+            Guardar(misiones);
             return mision;
         }
-        finally { _lock.Release(); }
     }
 
-    public async Task<bool> ActualizarAsync(Mision mision, CancellationToken ct = default)
+    public bool Actualizar(int id, Mision mision)
     {
-        await _lock.WaitAsync(ct);
-        try
+        lock (_lock)
         {
-            var misiones = await LeerAsync(ct);
-            var index = misiones.FindIndex(m => m.Id == mision.Id);
+            var misiones = Leer();
+            var index = misiones.FindIndex(m => m.Id == id);
             if (index < 0) return false;
+            mision.Id = id;
             misiones[index] = mision;
-            await GuardarAsync(misiones, ct);
+            Guardar(misiones);
             return true;
         }
-        finally { _lock.Release(); }
     }
 
-    public async Task<bool> EliminarAsync(int id, CancellationToken ct = default)
+    public bool Eliminar(int id)
     {
-        await _lock.WaitAsync(ct);
-        try
+        lock (_lock)
         {
-            var misiones = await LeerAsync(ct);
+            var misiones = Leer();
             if (misiones.RemoveAll(m => m.Id == id) == 0) return false;
-            await GuardarAsync(misiones, ct);
+            Guardar(misiones);
             return true;
         }
-        finally { _lock.Release(); }
     }
 }

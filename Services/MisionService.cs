@@ -23,32 +23,29 @@ public class MisionService(IMisionRepository repository) : IMisionService
         };
     }
 
-    public Task<List<Mision>> ObtenerTodasAsync(CancellationToken ct = default) =>
-        repository.ObtenerTodasAsync(ct);
+    public List<Mision> ObtenerTodas() => repository.ObtenerTodos();
 
-    public Task<Mision?> ObtenerPorIdAsync(int id, CancellationToken ct = default) =>
-        repository.ObtenerPorIdAsync(id, ct);
+    public Mision? ObtenerPorId(int id) => repository.ObtenerPorId(id);
 
-    public Task<Mision> CrearAsync(Mision request, CancellationToken ct = default)
+    public Mision Crear(Mision request)
     {
         var mision = ValidarYCrear(request);
         mision.Completada = false;
-        return repository.CrearAsync(mision, ct);
+        return repository.Agregar(mision);
     }
 
-    public async Task ActualizarAsync(int id, Mision request, CancellationToken ct = default)
+    public void Actualizar(int id, Mision request)
     {
-        if (await repository.ObtenerPorIdAsync(id, ct) is null)
+        if (repository.ObtenerPorId(id) is null)
             throw new KeyNotFoundException("La misión no existe.");
         var mision = ValidarYCrear(request);
-        mision.Id = id;
-        if (!await repository.ActualizarAsync(mision, ct))
+        if (!repository.Actualizar(id, mision))
             throw new KeyNotFoundException("La misión no existe.");
     }
 
-    public async Task EliminarAsync(int id, CancellationToken ct = default)
+    public void Eliminar(int id)
     {
-        if (!await repository.EliminarAsync(id, ct))
+        if (!repository.Eliminar(id))
             throw new KeyNotFoundException("La misión no existe.");
     }
 }
