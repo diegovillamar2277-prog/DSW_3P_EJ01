@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using QuestLog.Models;
 using QuestLog.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QuestLog.Controllers;
 
 [ApiController]
-[Route("api/misiones")]
+[Route("api/Misiones")]
+[Authorize]
 public class MisionesController(IMisionService service) : ControllerBase
 {
     [HttpGet]
@@ -17,7 +19,9 @@ public class MisionesController(IMisionService service) : ControllerBase
         var mision = service.ObtenerPorId(id);
         if (mision is null) return NotFound(new ProblemDetails
         {
-            Status = 404, Title = "Misión no encontrada", Detail = "La misión no existe."
+            Status = 404,
+            Title = "Misión no encontrada",
+            Detail = "La misión no existe."
         });
         return Ok(mision);
     }
